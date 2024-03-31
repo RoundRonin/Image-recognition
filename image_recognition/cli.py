@@ -1,36 +1,23 @@
-"""CLI interface for image_recognition project.
 
-Be creative! do whatever you want!
 
-- Install click or typer and create a CLI app
-- Use builtin argparse
-- Start a web application
-- Import things from your .base module
-"""
-import image_recognition.base as base
-from image_recognition.visualization import plotter_evaluator
-
-import numpy as np
-
-import os
-import keras
-from keras import layers
-from tensorflow import data as tf_data
-
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Dropout
-from keras.optimizers import RMSprop
-
-from keras.callbacks import ReduceLROnPlateau
-
+from image_recognition.modules.importer import importer
+from image_recognition.modules.model import model
+from image_recognition.modules.visualization import plotter_evaluator
 
 def main():  # pragma: no cover
 
-    base.hello()
     ## Формирование классов на основе файловой структуры
 
     # Внутри указанной директории должны нахдиться папки, имя которых соотвествует классу.
-    # В папках -- изображения, соответсвующие классу.
+    # В папках -- изображения, соответсвующие классу. Называние изображений не имеет значения.
+
+    # data_directory/
+    # ...class_a/
+    # ......a_image_1.jpg
+    # ......a_image_2.jpg
+    # ...class_b/
+    # ......b_image_1.jpg
+    # ......b_image_2.jpg
 
     # Размер по вертикали, размер по горизонтали. К этим значениям будут приведены все изображения (сжаты/растянуты, не обрезаны)
     height = 140
@@ -41,64 +28,32 @@ def main():  # pragma: no cover
     batch_size = 32
 
     # Вышеописанная директория
-    path_to_data = "Data50"
+    data_directory = "Data50"
 
-    train_ds, val_ds = keras.utils.image_dataset_from_directory(
-        path_to_data,
-        validation_split=0.2,
-        subset="both",
-        seed=1337,
-        label_mode="categorical",
-        shuffle=True,
-        image_size=image_size,
-        batch_size=batch_size,
-        color_mode="grayscale",
-        crop_to_aspect_ratio=True,
-    )
+    # Разделение на тренировочные и тестовые данные в долях. Указывается доля тестовых данны (.2 по-умолчанию)
+    validation_split = 0.2
+
+    i = importer(image_size, batch_size, data_directory, validation_split)
     
     # Получение имён классов, числа классов.
-    # TODO: Rework
-    labels =  np.array([])
-    for x, y in val_ds:
-        labels = np.concatenate([labels, np.argmax(y.numpy(), axis=-1)])
 
-    class_names = set(labels)
-    num_classes = len(class_names)
-
-    print(len(labels))
+    class_names = i.class_names
+    num_classes = i.num_classes
 
     ## Обработка данных
 
     # Вносится рандомизация (ротация, зум, перемещение). Также приводится яркость к понятному нейросети формату (вместо 0-255, 0-1).
 
-    data_augmentation_layers = [
-        layers.RandomRotation(0.08),
-        layers.RandomZoom(
-            height_factor=[-0.2,0.2],
-            width_factor=[-0.2,0.2],
-            fill_mode="constant",
-            fill_value=255.0,
-        ),
-        layers.RandomTranslation(
-            height_factor = [-0.1, 0.1],
-            width_factor = [-0.1, 0.1],
-            fill_mode="constant",
-            fill_value=255.0,
-        ),
-        layers.Rescaling(1.0 / 255)
-    ]
-
-    def data_augmentation(images):
-        for layer in data_augmentation_layers:
-            images = layer(images)
-        return images
+    i.generate_augmentation_layers(0.2, 0.1, 0.08)
 
     ### Применение слоёв обработки данных
 
-    train_ds = train_ds.map(
-        lambda img, label: (data_augmentation(img), label),
-        num_parallel_calls=tf_data.AUTOTUNE,
-    )
+    i.apply_augmentation()
+
+    ## Получение данных для модели
+
+    train_ds = i.train_ds
+    val_ds = i.validation_ds
 
     ## Формирование модели
 
@@ -108,58 +63,38 @@ def main():  # pragma: no cover
 
     # Последний слой имеет число нейронов, равное количеству классов.
 
-    model = Sequential()
+    # Первое число -- количество фильтров, второе -- окно в пискислях (3 на 3, напрмиер), которым алгоритм проходит по изображению.
+    # Каждый новый tuple -- новый слой Conv2D. Можно эксперементировать с числами.
+    conv_descriptor = (
+        (16, (3,3)),
+        (32, (3,3)),
+        (16, (3,3))
+    )
+    # Количсетво простых слоёв
+    dense_layer_number = 1
 
-    model.add(keras.Input(shape=(height,width,1)))
-
-    model.add(Conv2D(16, (3,3), 1, activation='relu'))
-    model.add(MaxPooling2D())
-    # model.add(Dropout(0.25))
-
-    model.add(Conv2D(32, (3,3), 1, activation='relu'))
-    model.add(MaxPooling2D())
-    # model.add(Dropout(0.25))
-
-    model.add(Conv2D(16, (3,3), 1, activation='relu'))
-    model.add(MaxPooling2D())
-    # model.add(Dropout(0.25))
-
-    model.add(Flatten())
-    model.add(Dense(256, activation='relu'))
-    # model.add(Dropout(0.25))
-
-    model.add(Dense(num_classes, activation = "softmax"))
-
-    # Компиляция модели
-    optimizer = RMSprop(learning_rate=0.001, rho=0.9, epsilon=1e-08)
-    model.compile(optimizer = optimizer , loss = "categorical_crossentropy", metrics=["accuracy"])
-
-    model.summary()
+    m = model(image_size, num_classes, dense_layer_number, conv_descriptor)
+    m.compile()
 
     # Обучение нейросети
 
     # Число проходов по набору данных. Не всегда улучшает результат. Надо смотреть на графики. (50 по умолчанию, при малом наборе данных)
     epochs = 50
 
-    learning_rate_reduction = ReduceLROnPlateau(monitor='accuracy',
-                                            patience=3, 
-                                            verbose=1, 
-                                            factor=0.5, 
-                                            min_lr=0.00001)
-    callbacks = [
-        # keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"),
-        learning_rate_reduction
-    ]
+    m.init_learning_rate_reduction()
+    # m.init_save_at_epoch()
 
-    history = model.fit(train_ds, epochs = epochs, validation_data = val_ds, callbacks=callbacks)
+    m.train(train_ds, epochs, val_ds)
+
+    history = m.history
+    model_instance = m.model
 
     # Визуализация
 
-    pe = plotter_evaluator(history, model, class_names)
+    pe = plotter_evaluator(history, model_instance, class_names)
     pe.calc_predictions(val_ds)
 
     ## Графики потерь и точности
-
     # Высокой должна быть и accuracy и val_accuracy. Первая -- точность на обучающей выборке, вторая -- на тестовой. 
     # Когда/если точность на обучающей выборке начинает превосходить точность на тестовой, продолжать обучение не следует.
 
@@ -168,13 +103,11 @@ def main():  # pragma: no cover
     pe.plot_loss_accuracy()
 
     ## Вычисление отчёта о качестве классификации
-
     # Значения accuracy, recall, f1 должны быть высокими.
 
     pe.print_report()
 
     ## Матрица запутанности
-
     # Хорший способ понять, как именно нейросеть ошибается
 
     pe.plot_confusion_matrix()
