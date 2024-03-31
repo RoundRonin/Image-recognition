@@ -109,14 +109,21 @@ def main():  # pragma: no cover
 
 
     # Тестирование избранных случаев
-    t = tester(model_instance)
+    t = tester(model_instance, class_names)
 
-    images = ["one", "two", "tree", "four", "five", "six", "seven", "eight", "nine", "zero"]
+    images = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "zero"]
     # Составной путь. Строится от корня программы
     for i in range(len(images)):
 
         absolute_path = os.path.join(os.getcwd(), 'test_images', images[i] + '.jpg')
         t.read_image(absolute_path, False)
 
-        t.img_predict()
+        t.img_predict(images[i])
 
+    # Импорт тестевого набора данных (существенно больше тренировачного)
+    # и последующа обработка plotter_evaluatorом
+    import_test = importer(image_size, batch_size, 'Data2k')
+    test_ds = import_test.train_ds
+    pe.calc_predictions(test_ds)
+    pe.print_report()
+    pe.plot_confusion_matrix()

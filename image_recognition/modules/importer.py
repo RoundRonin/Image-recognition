@@ -3,6 +3,7 @@
 import keras
 from tensorflow import data as tf_data
 import numpy as np
+import os
 
 class importer:
 
@@ -12,15 +13,20 @@ class importer:
     train_ds: tf_data.Dataset
     validation_ds: tf_data.Dataset
 
-    class_names: set
+    class_names: list[str]
     num_classes: int
 
-    def __init__(self, image_size, batch_size, data_directory, validation_split):
+    def __init__(self, image_size: tuple[int, int], batch_size: int, data_directory: str, validation_split: float | None = None):
        
-        self.train_ds, self.validation_ds = keras.utils.image_dataset_from_directory(
+        dirlist = os.listdir(data_directory)
+        subset = None
+        if (validation_split is not None): subset = "both"
+
+        data = keras.utils.image_dataset_from_directory(
             data_directory,
             validation_split=validation_split,
-            subset="both",
+            subset=subset,
+            class_names=dirlist,
             seed=self.__SEED,
             label_mode="categorical",
             shuffle=True,
@@ -30,7 +36,11 @@ class importer:
             crop_to_aspect_ratio=True,
         )
 
-        self.__get_stats()
+        if (validation_split is not None): self.train_ds, self.validation_ds = data
+        else: self.train_ds = data #type: ignore
+
+        self.class_names = dirlist
+        self.num_classes = len(dirlist)
 
     def generate_augmentation_layers(self, zoom_factor: float, move_factor: float, rotation_factor: float):
         
@@ -53,23 +63,14 @@ class importer:
     
     def apply_augmentation(self):
         
+        # TODO Rework to duplicate and augment data
         self.train_ds = self.train_ds.map(
             lambda img, label: (self.__data_augmentation(img), label),
             num_parallel_calls=tf_data.AUTOTUNE,
         )
 
     def __data_augmentation(self, images):
+
         for layer in self.__data_augmentation_layers:
             images = layer(images)
         return images
-
-    def __get_stats(self):
-
-        # TODO: Rework
-        labels = np.array([])
-        for _, y in self.validation_ds: # type: ignore
-            labels = np.concatenate([labels, np.argmax(y.numpy(), axis=-1)])
-
-        self.class_names = set(labels)
-        self.num_classes = len(self.class_names)
-

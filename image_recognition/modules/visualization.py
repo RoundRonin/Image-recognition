@@ -18,14 +18,14 @@ class plotter_evaluator:
     labels: np.ndarray
     pred_labels: list
 
-    def __init__(self, history: History, model: keras.Model, class_names: set):
+    def __init__(self, history: History, model: keras.Model, class_names: list):
         self.history = history
         self.model = model
 
         if type(list(class_names)[0]) is not str:
             self.class_names=list(map(str,class_names))
         else:
-            self.class_names = list(class_names)
+            self.class_names = class_names
 
     def calc_predictions(self, test_values: tf_data.Dataset):
 
@@ -76,9 +76,11 @@ class tester:
     img: np.ndarray | None = None
     model: keras.Model
     path: str
+    class_names: list[str]
 
-    def __init__(self, model: keras.Model):
+    def __init__(self, model: keras.Model, class_names: list[str]):
         self.model = model
+        self.class_names = class_names
 
     def read_image(self, path: str, show: bool):
         img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -90,13 +92,18 @@ class tester:
         self.path = path
         self.img = img
 
-    def img_predict(self):
+    def img_predict(self, name: str | None = None):
         if(self.img is None):
             print("No image supplied")
             return
 
         prediction = self.model.predict(np.expand_dims(self.img/255, 0))
         probabilities = list(map(lambda x: math.floor(x*1000)/1000, prediction[0]))
-        print(self.path)
-        print(probabilities)
+
+        prob_list = list(zip(self.class_names, probabilities))
+        class_predicted = self.class_names[probabilities.index(max(probabilities))]
+        
+        if (name is None): print(self.path + " is " + class_predicted)
+        else: print(name + " is " + class_predicted)
+        print(prob_list)
 
