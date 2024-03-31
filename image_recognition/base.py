@@ -15,3 +15,6 @@ and then choose `flask` as template.
 
 # example constant variable
 NAME = "image_recognition"
+
+def hello():
+    print("hello_there")

@@ -5,10 +5,16 @@
 
 Awesome image_recognition created by RoundRonin
 
-## Install it from PyPI
+## Установка приложения
 
 ```bash
 pip install image_recognition
+```
+
+## Установка зависимостей
+
+```bash
+pip install -e .
 ```
 
 ## Usage
