@@ -45,7 +45,6 @@ class model:
         # Компиляция модели
         optimizer = RMSprop(learning_rate=0.001, rho=0.9, epsilon=1e-08)
         self.model.compile(optimizer = optimizer , loss = "categorical_crossentropy", metrics=["accuracy"])
-        # self.model.summary()
 
     def train(self, train_ds: tf_data.Dataset, epochs: int, validation_data: tf_data.Dataset):
         
@@ -66,3 +65,4 @@ class model:
     def init_save_at_epoch(self):
         
         self.callbacks.append(keras.callbacks.ModelCheckpoint("save_at_{epoch}.keras"))
+

@@ -9,6 +9,7 @@ import keras
 from scikitplot.metrics import plot_confusion_matrix 
 from tensorflow import data as tf_data
 
+
 class plotter_evaluator:
 
     model: keras.Model
@@ -63,3 +64,39 @@ class plotter_evaluator:
         
         plot_confusion_matrix(self.labels, self.pred_labels,cmap= 'YlGnBu')
         plt.show()
+
+
+import cv2
+import tensorflow as tf
+import math
+
+
+class tester:
+
+    img: np.ndarray | None = None
+    model: keras.Model
+    path: str
+
+    def __init__(self, model: keras.Model):
+        self.model = model
+
+    def read_image(self, path: str, show: bool):
+        img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        if(img is None):
+            print("Image not found")
+            return
+
+        if(show): plt.imshow(img, cmap='gray', vmin=0, vmax=255)
+        self.path = path
+        self.img = img
+
+    def img_predict(self):
+        if(self.img is None):
+            print("No image supplied")
+            return
+
+        prediction = self.model.predict(np.expand_dims(self.img/255, 0))
+        probabilities = list(map(lambda x: math.floor(x*1000)/1000, prediction[0]))
+        print(self.path)
+        print(probabilities)
+

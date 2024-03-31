@@ -2,7 +2,8 @@
 
 from image_recognition.modules.importer import importer
 from image_recognition.modules.model import model
-from image_recognition.modules.visualization import plotter_evaluator
+from image_recognition.modules.visualization import plotter_evaluator, tester
+import os
 
 def main():  # pragma: no cover
 
@@ -38,6 +39,7 @@ def main():  # pragma: no cover
 
     ## Обработка данных
     # Вносится рандомизация (ротация, зум, перемещение). Также приводится яркость к понятному нейросети формату (вместо 0-255, 0-1).
+    # По-умолчанию (0.2, 0.1, 0.08)
     i.generate_augmentation_layers(0.2, 0.1, 0.08)
 
     ### Применение слоёв обработки данных
@@ -104,3 +106,17 @@ def main():  # pragma: no cover
     ## Матрица запутанности
     # Хорший способ понять, как именно нейросеть ошибается
     pe.plot_confusion_matrix()
+
+
+    # Тестирование избранных случаев
+    t = tester(model_instance)
+
+    images = ["one", "two", "tree", "four", "five", "six", "seven", "eight", "nine", "zero"]
+    # Составной путь. Строится от корня программы
+    for i in range(len(images)):
+
+        absolute_path = os.path.join(os.getcwd(), 'test_images', images[i] + '.jpg')
+        t.read_image(absolute_path, False)
+
+        t.img_predict()
+

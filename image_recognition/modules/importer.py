@@ -72,3 +72,4 @@ class importer:
 
         self.class_names = set(labels)
         self.num_classes = len(self.class_names)
+
