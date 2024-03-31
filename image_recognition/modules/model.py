@@ -13,29 +13,26 @@ class model:
 
     model: keras.Model
     history: History
-    callbacks = []
+    callbacks: list[keras.callbacks.Callback] = []
 
     def __init__(self, image_size: tuple[int,int], num_classes: int, dense_layers_number: int, conv_descriptor: tuple):
         
         model = Sequential()
 
+        def add_Conv2D(conv_layer: tuple[int, tuple[int, int]]):
+            model.add(Conv2D(conv_layer[0], conv_layer[1], 1, activation='relu'))
+            model.add(MaxPooling2D())
+            # model.add(Dropout(0.25))
+
         model.add(keras.Input(shape=image_size + (1, )))
 
-        model.add(Conv2D(16, (3,3), 1, activation='relu'))
-        model.add(MaxPooling2D())
-        # model.add(Dropout(0.25))
-
-        model.add(Conv2D(32, (3,3), 1, activation='relu'))
-        model.add(MaxPooling2D())
-        # model.add(Dropout(0.25))
-
-        model.add(Conv2D(16, (3,3), 1, activation='relu'))
-        model.add(MaxPooling2D())
-        # model.add(Dropout(0.25))
+        for i in range(len(conv_descriptor)):
+            add_Conv2D(conv_descriptor[i])
 
         model.add(Flatten())
-        model.add(Dense(256, activation='relu'))
-        # model.add(Dropout(0.25))
+        for i in range(dense_layers_number):
+            model.add(Dense(256, activation='relu'))
+            # model.add(Dropout(0.25))
 
         model.add(Dense(num_classes, activation = "softmax"))
 

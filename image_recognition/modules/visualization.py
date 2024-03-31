@@ -61,5 +61,5 @@ class plotter_evaluator:
 
     def plot_confusion_matrix(self):
         
-        fig, ax = plt.subplots(1, 2, figsize = (25,  8))
-        ax = plot_confusion_matrix(self.labels, self.pred_labels, ax = ax[0], cmap= 'YlGnBu')
+        plot_confusion_matrix(self.labels, self.pred_labels,cmap= 'YlGnBu')
+        plt.show()
